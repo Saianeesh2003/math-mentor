@@ -5,7 +5,7 @@ import os
 
 load_dotenv()
 
-mongo_client = MongoClient(os.getenv("MONGODB_URI"))
+mongo_client = MongoClient(os.getenv("MONGODB_URL"))
 db = mongo_client["math_mentor"]
 collection = db["solved_problems"]
 
