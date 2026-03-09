@@ -1,6 +1,7 @@
 # 📚 IIT JEE Math Mentor
 An end-to-end AI application that solves JEE-style math problems, explains solutions step-by-step, and improves over time using RAG + Multi-Agent AI.
-
+## 🚀 Live Demo
+👉 [Open App](https://math-mentor-tgt3duelt4kof6ng7pgkp5.streamlit.app/)
 ## 🏗️ Architecture
 
 ```mermaid
