@@ -138,7 +138,7 @@ ai_planet/
 | Multimodal Input (Text/Image/Audio) | ✅ Implemented |
 | Parser Agent with structured output | ✅ Implemented |
 | RAG Pipeline (embed → store → retrieve) | ✅ Implemented |
-| Multi-Agent System (5+ agents) | ✅ Implemented (6 agents) |
+| Multi-Agent System (5+ agents) | ✅ Implemented (5 agents) |
 | Human-in-the-Loop | ✅ Implemented (3 trigger points) |
 | Memory & Self-Learning | ✅ Implemented |
 | Streamlit UI with all required panels | ✅ Implemented |
