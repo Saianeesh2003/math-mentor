@@ -2,6 +2,9 @@
 An end-to-end AI application that solves JEE-style math problems, explains solutions step-by-step, and improves over time using RAG + Multi-Agent AI.
 ## 🚀 Live Demo
 👉 [Open App](https://math-mentor-tgt3duelt4kof6ng7pgkp5.streamlit.app/)
+
+## 🎥 Demo Video
+👉 [Watch Demo](https://youtu.be/m4vDvJtX5Bc)
 ## 🏗️ Architecture
 
 ```mermaid
@@ -135,7 +138,7 @@ ai_planet/
 | Multimodal Input (Text/Image/Audio) | ✅ Implemented |
 | Parser Agent with structured output | ✅ Implemented |
 | RAG Pipeline (embed → store → retrieve) | ✅ Implemented |
-| Multi-Agent System (5+ agents) | ✅ Implemented (6 agents) |
+| Multi-Agent System (5+ agents) | ✅ Implemented (5 agents) |
 | Human-in-the-Loop | ✅ Implemented (3 trigger points) |
 | Memory & Self-Learning | ✅ Implemented |
 | Streamlit UI with all required panels | ✅ Implemented |
