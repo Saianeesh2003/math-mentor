@@ -3,6 +3,7 @@ import json
 from dotenv import load_dotenv
 from anthropic import Anthropic
 import os
+
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
 from typing import Literal
@@ -25,6 +26,7 @@ class State(TypedDict):
     needs_hitl: bool | None
     verified: bool | None
     parsed_problem: dict | None
+    total_cost: float 
 
 def retrieve_context(query: str, topic: str) -> str:
     results = vector_db.similarity_search(
@@ -35,10 +37,20 @@ def retrieve_context(query: str, topic: str) -> str:
         return "No relevant formulas found."
     return "\n\n".join([r.page_content for r in results])
 
+
+def calculate_cost(response, model: str) -> float:
+    input_tokens = response.usage.input_tokens
+    output_tokens = response.usage.output_tokens
+    if "sonnet" in model:
+        cost = (input_tokens * 0.000003) + (output_tokens * 0.000015)
+    else:  
+        cost = (input_tokens * 0.000001) + (output_tokens * 0.000005)
+    return cost
+
 def parser_agent(state: State):
     query = state["query"]
     
-    SYSTEM_PROMPT = ""
+   
     SYSTEM_PROMPT = """You are a math problem parser.
 Clean and structure the given math problem.
 Return ONLY valid JSON, no explanation, no markdown, no backticks.
@@ -59,12 +71,14 @@ Set needs_clarification to true if ANY of these:
 - the question has fewer than 5 words and no math symbols"""
 
     response = client.messages.create(
+        
         model="claude-haiku-4-5-20251001",
         max_tokens=300,
         temperature=0,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": f"Parse this math problem: {query}"}]
     )
+    cost = calculate_cost(response, "haiku")
     
     raw = response.content[0].text.strip()
     try:
@@ -82,7 +96,8 @@ Set needs_clarification to true if ANY of these:
     return {
         "query": parsed["problem_text"], 
         "parsed_problem": parsed,
-        "needs_hitl": parsed["needs_clarification"]
+        "needs_hitl": parsed["needs_clarification"],
+        "total_cost": cost
     }
 
      
@@ -111,7 +126,10 @@ Do not add any other words.
                 "content": f"Question: {query}"
             }])
     label = response.content[0].text.strip().upper()
-    return {"route_label": label}
+    cost = calculate_cost(response, "haiku")
+    existing_cost = state.get("total_cost") or 0.0
+    return {"route_label": label, "total_cost": existing_cost + cost}
+    
 
 
 def route_bot(state:State)-> Literal["algebra_bot", "calculus_bot","prob_bot"]:
@@ -146,7 +164,13 @@ Give the final answer separately at the end.
                 "role": "user",
                 "content": f"Relevant formulas:\n{context}\n\nQuestion: {query}"
             }])
-    return {"final_answer": response.content[0].text, "retrieved_context": context}
+    cost = calculate_cost(response, "sonnet")
+    existing_cost = state.get("total_cost") or 0
+    return {
+    "final_answer": response.content[0].text,
+    "retrieved_context": context,
+    "total_cost": existing_cost + cost
+}
 
 def calculus_bot(state:State):
     query=state["query"]
@@ -168,7 +192,15 @@ Give the final answer separately at the end
                 "role": "user",
                 "content": f"Relevant formulas:\n{context}\n\nQuestion: {query}"
             }])
-    return {"final_answer": response.content[0].text, "retrieved_context": context}
+    
+
+    cost = calculate_cost(response, "haiku")
+    existing_cost = state.get("total_cost") or 0.0
+    return {
+    "final_answer": response.content[0].text,
+    "retrieved_context": context,
+    "total_cost": existing_cost + cost
+}
 def prob_bot(state:State):
     query=state["query"]
     context = retrieve_context(query, "probability")
@@ -189,7 +221,13 @@ Give the final answer separately at the end
                 "role": "user",
                 "content": f"Relevant formulas:\n{context}\n\nQuestion: {query}"
             }])
-    return {"final_answer": response.content[0].text, "retrieved_context": context}
+    cost = calculate_cost(response, "haiku")
+    existing_cost = state.get("total_cost") or 0.0
+    return {
+    "final_answer": response.content[0].text,
+    "retrieved_context": context,
+    "total_cost": existing_cost + cost
+}
 def verifier(state: State):
     query = state["query"]
     answer = state["final_answer"]
@@ -219,7 +257,14 @@ NOTES: one sentence explaining what you checked or what looks wrong"""
             verdict = line.replace("VERDICT:", "").strip().upper()
         elif line.startswith("NOTES:"):
             notes = line.replace("NOTES:", "").strip()
-    return {"verified": verdict == "CONFIDENT", "verification_notes": notes, "needs_hitl": verdict != "CONFIDENT"}
+    cost = calculate_cost(response, "haiku")
+    existing_cost = state.get("total_cost") or 0.0
+    return {
+    "verified": verdict == "CONFIDENT",
+    "verification_notes": notes,
+    "needs_hitl": verdict != "CONFIDENT",
+    "total_cost": existing_cost + cost
+}
 
 
 def explainer(state: State):
@@ -236,7 +281,12 @@ Highlight common mistakes to avoid. End with a one-line takeaway."""
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": f"Formulas:\n{context}\n\nQuestion: {query}\n\nSolution:\n{answer}\n\nExplain to a JEE student."}]
     )
-    return {"explanation": response.content[0].text}
+    cost = calculate_cost(response, "haiku")
+    existing_cost = state.get("total_cost") or 0.0
+    return {
+        "explanation": response.content[0].text,
+        "total_cost": existing_cost + cost
+    }
 
 graph_builder = StateGraph(State)
 graph_builder.add_node("parser_agent", parser_agent)
@@ -275,7 +325,8 @@ def main():
             "explanation": None,
             "needs_hitl": None,
             "verified": None,
-            "parsed_problem": None
+            "parsed_problem": None,
+            "total_cost": 0.0
         }
 
         result = graph.invoke(state)

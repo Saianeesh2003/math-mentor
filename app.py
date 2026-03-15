@@ -81,7 +81,8 @@ if st.button("🧠 Solve", disabled=not query.strip()):
             "explanation": None,
             "needs_hitl": None,
             "verified": None,
-            "parsed_problem": None
+            "parsed_problem": None,
+            "total_cost": 0.0
         }
         st.session_state.result = graph.invoke(state)
         st.session_state.query = query
@@ -118,6 +119,7 @@ if st.session_state.result:
 
     # Agent Trace
     with st.expander("🔍 Agent Trace"):
+        st.markdown(f"**💰 Cost this request:** `${result['total_cost']:.6f}`")
         st.markdown("**Parsed Problem:**")
         st.json(result["parsed_problem"])
         st.markdown(f"**Topic classified:** `{result['route_label']}`")
