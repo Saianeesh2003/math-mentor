@@ -2,6 +2,7 @@
 import json
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 import os
 
 from typing import TypedDict
@@ -36,12 +37,16 @@ def retrieve_context(query: str, topic: str) -> str:
 
 
 def generate_text(system_prompt: str, user_prompt: str) -> str:
-    """Generate a response with Gemini while keeping agent prompts explicit."""
-    interaction = client.interactions.create(
+    """Generate a single tutor-stage response with Gemini."""
+    response = client.models.generate_content(
         model=MODEL_NAME,
-        input=f"System instructions:\n{system_prompt}\n\nUser request:\n{user_prompt}",
+        contents=user_prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            max_output_tokens=2_048,
+        ),
     )
-    return interaction.output_text.strip()
+    return (response.text or "").strip()
 
 def parser_agent(state: State):
     query = state["query"]
