@@ -1,7 +1,7 @@
 
 import json
 from dotenv import load_dotenv
-from anthropic import Anthropic
+from google import genai
 import os
 
 from typing_extensions import TypedDict
@@ -10,7 +10,8 @@ from typing import Literal
 from langchain_pinecone import PineconeVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 load_dotenv()
-client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+MODEL_NAME = "gemini-3.5-flash"
+client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
 embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-001")
 vector_db = PineconeVectorStore(
     index_name=os.getenv("PINECONE_INDEX_NAME"),
@@ -38,14 +39,13 @@ def retrieve_context(query: str, topic: str) -> str:
     return "\n\n".join([r.page_content for r in results])
 
 
-def calculate_cost(response, model: str) -> float:
-    input_tokens = response.usage.input_tokens
-    output_tokens = response.usage.output_tokens
-    if "sonnet" in model:
-        cost = (input_tokens * 0.000003) + (output_tokens * 0.000015)
-    else:  
-        cost = (input_tokens * 0.000001) + (output_tokens * 0.000005)
-    return cost
+def generate_text(system_prompt: str, user_prompt: str) -> str:
+    """Generate a response with Gemini while keeping agent prompts explicit."""
+    interaction = client.interactions.create(
+        model=MODEL_NAME,
+        input=f"System instructions:\n{system_prompt}\n\nUser request:\n{user_prompt}",
+    )
+    return interaction.output_text.strip()
 
 def parser_agent(state: State):
     query = state["query"]
@@ -70,17 +70,7 @@ Set needs_clarification to true if ANY of these:
 - it is impossible to solve without more information
 - the question has fewer than 5 words and no math symbols"""
 
-    response = client.messages.create(
-        
-        model="claude-haiku-4-5-20251001",
-        max_tokens=300,
-        temperature=0,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": f"Parse this math problem: {query}"}]
-    )
-    cost = calculate_cost(response, "haiku")
-    
-    raw = response.content[0].text.strip()
+    raw = generate_text(SYSTEM_PROMPT, f"Parse this math problem: {query}")
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
@@ -97,7 +87,7 @@ Set needs_clarification to true if ANY of these:
         "query": parsed["problem_text"], 
         "parsed_problem": parsed,
         "needs_hitl": parsed["needs_clarification"],
-        "total_cost": cost
+        "total_cost": 0.0
     }
 
      
@@ -115,20 +105,8 @@ Do not add punctuation.
 Do not add any other words.
 """
    
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",  
-        max_tokens=50,
-        temperature=0,
-        system=SYSTEM_PROMPT,
-         messages=[
-            {
-                "role": "user",
-                "content": f"Question: {query}"
-            }])
-    label = response.content[0].text.strip().upper()
-    cost = calculate_cost(response, "haiku")
-    existing_cost = state.get("total_cost") or 0.0
-    return {"route_label": label, "total_cost": existing_cost + cost}
+    label = generate_text(SYSTEM_PROMPT, f"Question: {query}").upper()
+    return {"route_label": label, "total_cost": state.get("total_cost") or 0.0}
     
 
 
@@ -155,21 +133,11 @@ You are given relevant formulas and context to help solve the problem.
 Use the provided context to solve step by step.
 Give the final answer separately at the end.
     """
-    response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",  
-        max_tokens=2000,
-        system=SYSTEM_PROMPT,
-         messages=[
-            {
-                "role": "user",
-                "content": f"Relevant formulas:\n{context}\n\nQuestion: {query}"
-            }])
-    cost = calculate_cost(response, "sonnet")
-    existing_cost = state.get("total_cost") or 0
+    answer = generate_text(SYSTEM_PROMPT, f"Relevant formulas:\n{context}\n\nQuestion: {query}")
     return {
-    "final_answer": response.content[0].text,
+    "final_answer": answer,
     "retrieved_context": context,
-    "total_cost": existing_cost + cost
+    "total_cost": state.get("total_cost") or 0.0
 }
 
 def calculus_bot(state:State):
@@ -183,23 +151,11 @@ You are given relevant formulas and context to help solve the problem.
 Use the provided context to solve step by step.
 Give the final answer separately at the end
     """
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",  
-        max_tokens=2000,
-        system=SYSTEM_PROMPT,
-         messages=[
-            {
-                "role": "user",
-                "content": f"Relevant formulas:\n{context}\n\nQuestion: {query}"
-            }])
-    
-
-    cost = calculate_cost(response, "haiku")
-    existing_cost = state.get("total_cost") or 0.0
+    answer = generate_text(SYSTEM_PROMPT, f"Relevant formulas:\n{context}\n\nQuestion: {query}")
     return {
-    "final_answer": response.content[0].text,
+    "final_answer": answer,
     "retrieved_context": context,
-    "total_cost": existing_cost + cost
+    "total_cost": state.get("total_cost") or 0.0
 }
 def prob_bot(state:State):
     query=state["query"]
@@ -212,21 +168,11 @@ You are given relevant formulas and context to help solve the problem.
 Use the provided context to solve step by step.
 Give the final answer separately at the end
     """
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",  
-        max_tokens=2000,
-        system=SYSTEM_PROMPT,
-         messages=[
-            {
-                "role": "user",
-                "content": f"Relevant formulas:\n{context}\n\nQuestion: {query}"
-            }])
-    cost = calculate_cost(response, "haiku")
-    existing_cost = state.get("total_cost") or 0.0
+    answer = generate_text(SYSTEM_PROMPT, f"Relevant formulas:\n{context}\n\nQuestion: {query}")
     return {
-    "final_answer": response.content[0].text,
+    "final_answer": answer,
     "retrieved_context": context,
-    "total_cost": existing_cost + cost
+    "total_cost": state.get("total_cost") or 0.0
 }
 def verifier(state: State):
     query = state["query"]
@@ -243,27 +189,18 @@ Respond in this exact format:
 VERDICT: CONFIDENT or UNSURE
 NOTES: one sentence explaining what you checked or what looks wrong"""
 
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=200,
-        temperature=0,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": f"Formulas:\n{context}\n\nQuestion: {query}\n\nAnswer:\n{answer}"}]
-    )
-    raw = response.content[0].text.strip()
+    raw = generate_text(SYSTEM_PROMPT, f"Formulas:\n{context}\n\nQuestion: {query}\n\nAnswer:\n{answer}")
     verdict, notes = "CONFIDENT", ""
     for line in raw.splitlines():
         if line.startswith("VERDICT:"):
             verdict = line.replace("VERDICT:", "").strip().upper()
         elif line.startswith("NOTES:"):
             notes = line.replace("NOTES:", "").strip()
-    cost = calculate_cost(response, "haiku")
-    existing_cost = state.get("total_cost") or 0.0
     return {
     "verified": verdict == "CONFIDENT",
     "verification_notes": notes,
     "needs_hitl": verdict != "CONFIDENT",
-    "total_cost": existing_cost + cost
+    "total_cost": state.get("total_cost") or 0.0
 }
 
 
@@ -275,17 +212,10 @@ def explainer(state: State):
 Do NOT re-solve. Explain WHY each step works in simple language.
 Use numbered steps, mention which formula was used and why.
 Highlight common mistakes to avoid. End with a one-line takeaway."""
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2000,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": f"Formulas:\n{context}\n\nQuestion: {query}\n\nSolution:\n{answer}\n\nExplain to a JEE student."}]
-    )
-    cost = calculate_cost(response, "haiku")
-    existing_cost = state.get("total_cost") or 0.0
+    explanation = generate_text(SYSTEM_PROMPT, f"Formulas:\n{context}\n\nQuestion: {query}\n\nSolution:\n{answer}\n\nExplain to a JEE student.")
     return {
-        "explanation": response.content[0].text,
-        "total_cost": existing_cost + cost
+        "explanation": explanation,
+        "total_cost": state.get("total_cost") or 0.0
     }
 
 graph_builder = StateGraph(State)

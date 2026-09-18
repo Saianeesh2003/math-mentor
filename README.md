@@ -18,7 +18,7 @@ graph TD
     F -->|Algebra| G[Algebra Solver]
     F -->|Calculus| H[Calculus Solver]
     F -->|Probability| I[Probability Solver]
-    G & H & I -->|RAG + Claude| J[Verifier Agent]
+    G & H & I -->|RAG + Gemini| J[Verifier Agent]
     J -->|Unsure| K[HITL - Human Review]
     K --> J
     J -->|Confident| L[Explainer Agent]
@@ -34,7 +34,7 @@ graph TD
 |---|---|
 | Parser Agent | Cleans OCR/ASR output, structures problem into JSON, triggers HITL if ambiguous |
 | Intent Router | Classifies problem as Algebra / Calculus / Probability and routes workflow |
-| Solver Agent | Solves using RAG (retrieved formulas from Pinecone) + Claude LLM |
+| Solver Agent | Solves using RAG (retrieved formulas from Pinecone) + Gemini 3.5 Flash |
 | Verifier Agent | Checks correctness, domain constraints, edge cases — triggers HITL if unsure |
 | Explainer Agent | Produces student-friendly step-by-step explanation with takeaways |
 
@@ -49,7 +49,7 @@ graph TD
 
 ## 🛠️ Tech Stack
 
-- **LLM** — Claude (Anthropic)
+- **LLM** — Gemini 3.5 Flash (Google)
 - **Agents** — LangGraph
 - **RAG** — Pinecone + Google Gemini Embeddings
 - **OCR** — EasyOCR
@@ -83,7 +83,6 @@ cp .env.example .env
 ```
 Fill in your API keys in `.env`:
 ```
-ANTHROPIC_API_KEY=your_key
 GOOGLE_API_KEY=your_key
 PINECONE_API_KEY=your_key
 PINECONE_INDEX_NAME=math-mentor

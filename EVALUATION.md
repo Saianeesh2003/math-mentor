@@ -8,10 +8,10 @@ An end-to-end AI application that solves JEE-style math problems (Algebra, Calcu
 | Agent | What it does |
 |---|---|
 | Parser Agent | Cleans and structures raw input (OCR/ASR/text) into JSON. Triggers HITL if question is ambiguous or incomplete. |
-| Intent Router | Classifies problem as Algebra / Calculus / Probability using Claude Haiku. Routes to correct solver. |
-| Algebra Solver | Solves algebra problems using RAG-retrieved formulas + Claude Sonnet |
-| Calculus Solver | Solves limits, derivatives, integrals using RAG-retrieved formulas + Claude Haiku |
-| Probability Solver | Solves probability problems using RAG-retrieved formulas + Claude Haiku |
+| Intent Router | Classifies problem as Algebra / Calculus / Probability using Gemini 3.5 Flash. Routes to correct solver. |
+| Algebra Solver | Solves algebra problems using RAG-retrieved formulas + Gemini 3.5 Flash |
+| Calculus Solver | Solves limits, derivatives, integrals using RAG-retrieved formulas + Gemini 3.5 Flash |
+| Probability Solver | Solves probability problems using RAG-retrieved formulas + Gemini 3.5 Flash |
 | Verifier Agent | Checks correctness, domain constraints, edge cases. Sets confidence level. Triggers HITL if unsure. |
 | Explainer Agent | Produces numbered, student-friendly explanation of why each step works. Highlights common mistakes. |
 
@@ -57,7 +57,7 @@ Approved corrections are stored in MongoDB as learning signals.
 - **Audio input not tested on all accents** — Whisper tiny model may struggle with heavy accents on math terminology.
 
 ## Tech Stack
-- **LLM** — Claude Haiku + Sonnet (Anthropic)
+- **LLM** — Gemini 3.5 Flash (Google)
 - **Agents** — LangGraph
 - **RAG** — Pinecone + Google Gemini Embeddings
 - **OCR** — EasyOCR
