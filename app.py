@@ -1,10 +1,6 @@
 import streamlit as st
 from classifier import graph, State
-import easyocr
-import numpy as np
-from PIL import Image
 from memory import save_to_memory, get_similar_problems
-import os
 st.set_page_config(page_title="Math Mentor", page_icon="📐", layout="wide")
 st.title("📚🤯IIT JEE Math Mentor")
 st.caption("Powered by RAG + Multi-Agent AI")
@@ -22,49 +18,8 @@ if "query" not in st.session_state:
 # ------------------------------------------------------------------
 # Input Mode
 # ------------------------------------------------------------------
-mode = st.radio("Input mode", ["Text", "Image", "Audio"], horizontal=True)
-
-query = ""
-
-if mode == "Text":
-    query = st.text_area("Enter your math question", height=100)
-
-elif mode == "Image":
-    uploaded = st.file_uploader("Upload image of math problem", type=["jpg", "jpeg", "png"])
-    if uploaded:
-        image = Image.open(uploaded)
-        st.image(image, caption="Uploaded image", use_column_width=True)
-        with st.spinner("Extracting text from image..."):
-            reader = easyocr.Reader(['en'], gpu=False)
-            ocr_result = reader.readtext(np.array(image), detail=0)
-            extracted = " ".join(ocr_result)
-        st.markdown("**Extracted text** (edit if needed):")
-        query = st.text_area("Extracted text", value=extracted, height=100)
-elif mode == "Audio":
-    audio_file = st.file_uploader("Upload audio file", type=["mp3", "wav", "m4a"])
-    if audio_file:
-        st.audio(audio_file)
-        with st.spinner("Transcribing audio..."):
-            import whisper
-            import tempfile
-            # Save uploaded file temporarily
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{audio_file.name.split('.')[-1]}") as tmp:
-                tmp.write(audio_file.read())
-                tmp_path = tmp.name
-            # Transcribe
-            model = whisper.load_model("tiny")
-            result_whisper = model.transcribe(tmp_path)
-            transcript = result_whisper["text"].strip()
-            # Cleanup
-            os.remove(tmp_path)
-        st.markdown("**Transcript** (edit if needed):")
-        query = st.text_area("Transcript", value=transcript, height=100)
-        if result_whisper["segments"]:
-            avg_confidence = sum(
-                s.get("no_speech_prob", 0) for s in result_whisper["segments"]
-            ) / len(result_whisper["segments"])
-            if avg_confidence > 0.5:
-                st.warning("⚠️ Low confidence transcript — please review carefully")        
+st.caption("Text input is currently enabled while image and audio processing are being restored.")
+query = st.text_area("Enter your math question", height=100)
 
 # ------------------------------------------------------------------
 # Solve Button

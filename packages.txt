@@ -1,1 +1,1 @@
-ffmpeg 
+# No system packages are required for text-mode deployment.

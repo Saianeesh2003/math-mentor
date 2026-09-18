@@ -4,19 +4,21 @@ from dotenv import load_dotenv
 from google import genai
 import os
 
-from typing_extensions import TypedDict
-from langgraph.graph import StateGraph, START, END
-from typing import Literal
-from langchain_pinecone import PineconeVectorStore
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from typing import TypedDict
 load_dotenv()
 MODEL_NAME = "gemini-3.5-flash"
 client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
-embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-001")
-vector_db = PineconeVectorStore(
-    index_name=os.getenv("PINECONE_INDEX_NAME"),
-    embedding=embeddings
-)
+
+KNOWLEDGE_BASE = {
+    "algebra": """Quadratic formula: x = (-b ± √(b²-4ac)) / 2a. Discriminant D=b²-4ac: D>0 gives two real roots, D=0 one real root, D<0 no real roots.
+Arithmetic progression: nth term = a + (n-1)d; sum = n/2 × (2a + (n-1)d).
+Geometric progression: nth term = ar^(n-1); sum of n terms = a(1-r^n)/(1-r).""",
+    "calculus": """Derivative rules: d/dx(x^n)=nx^(n-1), d/dx(sin x)=cos x, d/dx(cos x)=-sin x, d/dx(e^x)=e^x, d/dx(ln x)=1/x.
+Integration: ∫x^n dx=x^(n+1)/(n+1)+C; ∫sin(x)dx=-cos(x)+C; ∫cos(x)dx=sin(x)+C.
+For extrema, solve f'(x)=0; f''(x)<0 indicates a maximum and f''(x)>0 a minimum.""",
+    "probability": """P(A∪B)=P(A)+P(B)-P(A∩B). P(A|B)=P(A∩B)/P(B). Independent events: P(A∩B)=P(A)P(B).
+Bayes theorem: P(A|B)=P(B|A)P(A)/P(B). Binomial: P(X=r)=C(n,r)p^r(1-p)^(n-r), mean=np, variance=np(1-p).""",
+}
 class State(TypedDict):
     query: str
     route_label: str | None
@@ -30,13 +32,7 @@ class State(TypedDict):
     total_cost: float 
 
 def retrieve_context(query: str, topic: str) -> str:
-    results = vector_db.similarity_search(
-        query=query,
-        k=3,
-        filter={"topic": topic})
-    if not results:
-        return "No relevant formulas found."
-    return "\n\n".join([r.page_content for r in results])
+    return KNOWLEDGE_BASE.get(topic, "No relevant formulas found.")
 
 
 def generate_text(system_prompt: str, user_prompt: str) -> str:
@@ -110,7 +106,7 @@ Do not add any other words.
     
 
 
-def route_bot(state:State)-> Literal["algebra_bot", "calculus_bot","prob_bot"]:
+def route_bot(state: State) -> str:
     label = (state.get("route_label") or "").strip().upper()
     if label == "A":
         return "algebra_bot"
@@ -218,25 +214,25 @@ Highlight common mistakes to avoid. End with a one-line takeaway."""
         "total_cost": state.get("total_cost") or 0.0
     }
 
-graph_builder = StateGraph(State)
-graph_builder.add_node("parser_agent", parser_agent)
-graph_builder.add_node("classify_msg", classify_msg)
-graph_builder.add_node("algebra_bot", algebra_bot)
-graph_builder.add_node("calculus_bot", calculus_bot)
-graph_builder.add_node("prob_bot", prob_bot)
-graph_builder.add_node("verifier", verifier)
-graph_builder.add_node("explainer", explainer)
+class TutorGraph:
+    """Dependency-free orchestration for the tutor's agent stages."""
 
-graph_builder.add_edge(START, "parser_agent")
-graph_builder.add_edge("parser_agent", "classify_msg")
-graph_builder.add_conditional_edges("classify_msg", route_bot)
-graph_builder.add_edge("algebra_bot", "verifier")
-graph_builder.add_edge("calculus_bot", "verifier")
-graph_builder.add_edge("prob_bot", "verifier")
-graph_builder.add_edge("verifier", "explainer")
-graph_builder.add_edge("explainer", END)
+    def invoke(self, state: State) -> State:
+        state.update(parser_agent(state))
+        state.update(classify_msg(state))
+        route = route_bot(state)
+        if route == "algebra_bot":
+            state.update(algebra_bot(state))
+        elif route == "calculus_bot":
+            state.update(calculus_bot(state))
+        else:
+            state.update(prob_bot(state))
+        state.update(verifier(state))
+        state.update(explainer(state))
+        return state
 
-graph = graph_builder.compile()
+
+graph = TutorGraph()
 
 
 def main():
