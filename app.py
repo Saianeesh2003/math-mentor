@@ -1,8 +1,8 @@
 import streamlit as st
 from classifier import graph, State
 from memory import save_to_memory, get_similar_problems
-st.set_page_config(page_title="Math Mentor", page_icon="📐", layout="wide")
-st.title("📚🤯IIT JEE Math Mentor")
+st.set_page_config(page_title="Math Mentor", layout="wide")
+st.title("IIT JEE Math Mentor")
 st.caption("Powered by RAG + Multi-Agent AI")
 
 # ------------------------------------------------------------------
