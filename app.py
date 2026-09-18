@@ -146,8 +146,10 @@ if st.session_state.result:
     col3, col4 = st.columns(2)
     with col3:
         if st.button("✅ Correct", key="correct_btn"):
-            save_to_memory(result, feedback="correct")
-            st.session_state.feedback_given = "correct"
+            if save_to_memory(result, feedback="correct"):
+                st.session_state.feedback_given = "correct"
+            else:
+                st.warning("Memory is temporarily unavailable, so this solution was not saved.")
     with col4:
         if st.button("❌ Incorrect", key="incorrect_btn"):
             st.session_state.feedback_given = "incorrect"
@@ -158,5 +160,7 @@ if st.session_state.result:
         comment = st.text_input("What was wrong?", key="incorrect_comment")
         if st.button("Submit feedback", key="submit_feedback"):
             if comment:
-                save_to_memory(result, feedback=f"incorrect: {comment}")
-                st.info("Feedback recorded. We'll improve!")
+                if save_to_memory(result, feedback=f"incorrect: {comment}"):
+                    st.info("Feedback recorded. We'll improve!")
+                else:
+                    st.warning("Memory is temporarily unavailable, so this feedback was not saved.")
